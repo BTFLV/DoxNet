@@ -241,6 +241,7 @@ def convert_md_to_html(toc_md, content_md, title):
 <html>
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{title}</title>
 {style}
 </head>
