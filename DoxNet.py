@@ -96,23 +96,37 @@ def remove_doxnet_comments(code):
     code = re.sub(r'^\s*///.*$', '', code, flags=re.MULTILINE)
     return code
 
+def format_port_line(line):
+    match = re.match(r'^\s*(?P<decl>.*?)\s+(?P<desc>[A-Z].*)$', line)
+    if match:
+        declaration = match.group('decl').strip()
+        description = match.group('desc').strip()
+        return f"- `{declaration}` {description}\n"
+    else:
+        return f"- `{line.strip()}`\n"
+
 def generate_markdown(docs, lang, title, base_path):
     toc_md = f"# {title}\n\n"
     toc_md += f"## {lang['toc']}\n\n"
     for file_path in sorted(docs.keys()):
-        toc_md += f"- **{lang['file']}:** {file_path}\n"
+        file_anchor = f"file-{file_path.lower().replace('/', '-').replace('.', '-').replace('_', '-')}"
+        toc_md += f"- **[{lang['file']}: {file_path}](#{file_anchor})**\n"
         for doc in docs[file_path]:
             mod = doc.get('module', 'Unknown')
-            anchor = f"module-{mod.lower()}"
-            toc_md += f"  - [{lang['module']}: {mod}](#{anchor})\n"
+            if mod != 'Unknown':
+                anchor = f"module-{mod.lower()}"
+                toc_md += f"  - [{lang['module']}: {mod}](#{anchor})\n"
     body_md = ""
     for file_path in sorted(docs.keys()):
-        body_md += f"## {lang['file']}: {file_path}\n\n"
+        file_anchor = f"file-{file_path.lower().replace('/', '-').replace('.', '-').replace('_', '-')}"
+        body_md += f"## {lang['file']}: {file_path} {{#{file_anchor}}}\n\n"
         for doc in docs[file_path]:
             mod = doc.get('module', 'Unknown')
-            anchor = f"module-{mod.lower()}"
-            body_md += f"### {lang['module']}: {mod} {{#{anchor}}}\n\n"
-            body_md += f"**{lang['brief']}:** {doc.get('brief', '')}\n\n"
+            if mod != 'Unknown':
+                anchor = f"module-{mod.lower()}"
+                body_md += f"### {lang['module']}: {mod} {{#{anchor}}}\n\n"
+            if doc.get('brief'):
+                body_md += f"**{lang['brief']}:** {doc.get('brief', '')}\n\n"
             if doc.get('description'):
                 body_md += f"{doc['description']}\n\n"
             if doc.get('parameters'):
@@ -136,29 +150,17 @@ def generate_markdown(docs, lang, title, base_path):
             if doc.get('inputs'):
                 body_md += f"**{lang['inputs']}:**\n\n"
                 for inp in doc['inputs']:
-                    tokens = inp.split(' ', 1)
-                    if len(tokens) == 2:
-                        body_md += f"- `{tokens[0]}` {tokens[1]}\n"
-                    else:
-                        body_md += f"- `{inp}`\n"
+                    body_md += format_port_line(inp)
                 body_md += "\n"
             if doc.get('outputs'):
                 body_md += f"**{lang['outputs']}:**\n\n"
                 for out in doc['outputs']:
-                    tokens = out.split(' ', 1)
-                    if len(tokens) == 2:
-                        body_md += f"- `{tokens[0]}` {tokens[1]}\n"
-                    else:
-                        body_md += f"- `{out}`\n"
+                    body_md += format_port_line(out)
                 body_md += "\n"
             if doc.get('inouts'):
                 body_md += f"**{lang['inouts']}:**\n\n"
                 for io in doc['inouts']:
-                    tokens = io.split(' ', 1)
-                    if len(tokens) == 2:
-                        body_md += f"- `{tokens[0]}` {tokens[1]}\n"
-                    else:
-                        body_md += f"- `{io}`\n"
+                    body_md += format_port_line(io)
                 body_md += "\n"
         full_path = os.path.join(base_path, file_path)
         try:
@@ -175,8 +177,9 @@ def generate_markdown(docs, lang, title, base_path):
 def convert_md_to_html(toc_md, content_md, title):
     pygments_css = HtmlFormatter(style="monokai").get_style_defs('.codehilite')
     
-    toc_html = markdown(toc_md, extensions=['extra', 'nl2br', 'codehilite'])
-    content_html = markdown(content_md, extensions=['extra', 'nl2br', 'codehilite'])
+    extensions = ['extra', 'nl2br', 'codehilite', 'toc', 'attr_list']
+    toc_html = markdown(toc_md, extensions=extensions)
+    content_html = markdown(content_md, extensions=extensions)
     
     style = f"""
     <style>
