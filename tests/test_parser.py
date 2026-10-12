@@ -52,3 +52,12 @@ def test_remove_doxnet_comments_strips_blocks():
     cleaned = remove_doxnet_comments(code)
     assert "@brief" not in cleaned
     assert "module m;" in cleaned
+
+
+def test_string_keyword_does_not_inflate_coverage(tmp_path):
+    code = 'module real;\n  string x = "module phantom";\nendmodule\n'
+    path = tmp_path / "real.sv"
+    path.write_text(code)
+    _, (_, total, undocumented) = parse_verilog_file(str(path))
+    assert total == 1
+    assert undocumented == ["real"]
