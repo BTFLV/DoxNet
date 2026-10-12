@@ -32,7 +32,7 @@ def test_end_to_end_three_formats_and_gates(tmp_path):
     report = json.loads((dest / "documentation.json").read_text())
     assert report["coverage"]["ports"]["percent"] == 100
     assert report["units"][0]["parameters"][0]["default"] == "8"
-    assert "device" in (dest / "documentation.html").read_text()
+    assert "device" in (dest / "documentation.html").read_text(encoding="utf-8")
     assert "Ports" in (dest / "documentation.md").read_text()
 
 
@@ -159,7 +159,7 @@ def test_pdf_failure_explicitly_required_is_error(tmp_path, monkeypatch):
 def test_opt_out_of_source_embedding(tmp_path):
     rtl, dest = _project(tmp_path)
     assert main(["-i", str(rtl), "-o", str(dest), "--no-source", "--no-pdf"]) == 0
-    html = (dest / "documentation.html").read_text()
+    html = (dest / "documentation.html").read_text(encoding="utf-8")
     assert 'class="source"' not in html
 
 
