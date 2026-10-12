@@ -1,205 +1,156 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/logo-dark.svg">
-  <img src="assets/logo-light.svg" alt="DoxNet logo" width="420">
+  <img src="assets/logo-light.svg" alt="DoxNet" width="420">
 </picture>
 
-# DoxNet – A Lightweight Documentation Generator for Verilog & SystemVerilog
+# DoxNet
 
-**DoxNet** is a simple and extensible documentation tool inspired by Doxygen, tailored for **Verilog** and **SystemVerilog**. It parses structured comments in your HDL code and generates **Markdown**, **responsive HTML**, and optionally **PDF** documentation — with a documentation-coverage gate that makes it safe to enforce in CI/CD.
+**HDL-aware documentation and interface validation for Verilog/SystemVerilog.**
 
-The generated HTML supports both **light and dark themes** (auto-detected, with a manual toggle), includes a **collapsible sidebar**, and works well on both desktop and mobile. Source code is rendered with rich **syntax highlighting** via Pygments.
+DoxNet reads RTL source files, extracts module/interface/package declarations, their ports and parameters, merges Doxygen-style comments with the actual HDL interfaces, and generates **Markdown**, **searchable static HTML**, **JSON**, and optionally **PDF**. It reports missing documentation as coverage metrics and warns when comments refer to ports or parameters that no longer exist.
 
----
+> **Parser scope:** DoxNet 2.1 uses a conservative, source-aware lexical/header parser. It does **not** yet fully parse or elaborate IEEE 1800 SystemVerilog. Macro expansion, `ifdef evaluation, complex header declarations, and elaborated instance hierarchies need a full HDL frontend. See [Limitations](#limitations) and [Architecture](docs/ARCHITECTURE.md).
 
-## ✨ Features
+## Features
 
-- ✅ Doxygen-style annotations:
-  - `@brief` – Short description
-  - `@input`, `@output`, `@inout` – Signal interface documentation
-  - `@parameter`, `@localparam` – Parameter and constant documentation
-- ✅ Parses `module`, `interface`, and `package` blocks (Verilog & SystemVerilog)
-- ✅ **Documentation-coverage gate** (`--min-coverage` / `--strict`) — fail the build when undocumented modules/interfaces/packages slip through
-- ✅ Syntax-highlighted code blocks (collapsible in HTML)
-- ✅ Markdown, HTML, and optional PDF generation via Pandoc
-- ✅ Fully responsive HTML layout with **light/dark theme toggle**
-- ✅ English and German language support
-- ✅ Config file support for output file names, file order, and titles
-- ✅ Installable CLI (`pip install .` → `doxnet` command) with proper exit codes and logging — built for CI/CD
+- Doxygen-like `/** ... */` or consecutive `///` comments: `@brief`, `@port`, `@input`, `@output`, `@inout`, `@parameter`, `@localparam`.
+- Auto-extracted **port names, directions, type/width expressions**, plus **parameter names, types and defaults**; does not require duplicate interface declarations in comments.
+- Documented **and undocumented** design units appear in the output.
+- **Unit, port and parameter documentation coverage** with separate CI thresholds.
+- Warnings for stale, duplicate or direction-mismatched annotations; optional CI failure on warnings.
+- Responsive standalone HTML with search, syntax highlighting, light/dark toggle, navigation and collapsible source; no external CSS/JS at runtime.
+- Machine-readable JSON output with stable `schema_version`, source locations, diagnostics and coverage metrics.
+- Config files, explicit file order, nested filelists, exclusion globs, English/German labels, and direct HTTPS source links.
+- Installable CLI and backward-compatible `python DoxNet.py` wrapper.
+- pytest regressions and GitHub Actions for Linux, Windows and macOS.
 
----
+## Installation
 
-## 📦 Installation
-
-Requires Python 3.8+.
+Requires **Python 3.9+**.
 
 ```bash
 pip install .
+doxnet --version
 ```
 
-This installs the `doxnet` command along with its dependencies ([`markdown`](https://pypi.org/project/Markdown/) and [`pygments`](https://pypi.org/project/Pygments/)).
-
-Optional, for PDF export: [`pandoc`](https://pandoc.org/)
-
-```bash
-sudo apt-get install pandoc
-```
-
-> Prefer not to install? `python DoxNet.py ...` still works as a drop-in, dependency-light entry point.
-
----
-
-## 🚀 Usage
-
-### Option 1: CLI Arguments
-
-```bash
-doxnet --input <hdl_folder> --output <output_folder> --language en --title "My Project Documentation"
-```
-
-### Option 2: Config File
-
-Create a `config.json`:
-
-```json
-{
-  "title": "My Verilog Documentation",
-  "language": "en",
-  "html_file": "verilog.html",
-  "md_file": "verilog.md",
-  "pdf_file": "verilog.pdf",
-  "files": [
-    "rtl/module1.v",
-    "rtl/module2.sv"
-  ]
-}
-```
-
-Run with:
-
-```bash
-doxnet --output docs/html/verilog --config config.json
-```
-
-### Enforcing documentation in CI
-
-```bash
-# fail the build (exit code 2) if less than 90% of modules/interfaces/packages are documented
-doxnet --input rtl --output docs --min-coverage 90
-
-# fail on ANY undocumented unit
-doxnet --input rtl --output docs --strict
-```
-
-Other useful flags: `--no-pdf` (skip Pandoc even if installed), `-v`/`-vv` (more verbose logging), `-q` (warnings/errors only), `--version`.
-
-Exit codes: `0` success, `1` input/config error (including no design units), `2` coverage gate failed. Coverage gates apply only to detected design units; this lightweight parser does not yet perform full SystemVerilog preprocessing, AST analysis, or automatic port extraction.
-
----
-
-## 📝 Comment Syntax
-
-Use Doxygen-style comments above your `module`, `interface`, or `package` declarations:
-
-```verilog
-/**
- * @brief A simple example module.
- *
- * Demonstrates how to document a Verilog/SystemVerilog module using DoxNet.
- *
- * @parameter WIDTH Bit width of data bus.
- * @localparam DEPTH Internal FIFO depth.
- *
- * @input clk Clock signal.
- * @input rst_n Active-low reset.
- * @input enable Enable signal.
- * @inout data Data bus (bidirectional).
- *
- * @output ready Ready flag.
- */
-module example #(parameter WIDTH = 8) (
-  input  wire        clk,
-  input  wire        rst_n,
-  input  wire        enable,
-  inout  wire [WIDTH-1:0] data,
-  output wire        ready
-);
-  localparam DEPTH = 16;
-  // ...
-endmodule
-```
-
-Also supported:
-- `/// @brief One-line style`
-- `/// @input clk Clock signal`
-
----
-
-## 📁 Output Files
-
-| File Name             | Description                                      |
-|-----------------------|--------------------------------------------------|
-| `verilog.md`          | Raw Markdown file                                |
-| `verilog.html`        | Responsive HTML with sidebar, syntax highlighting, and a light/dark theme toggle |
-| `verilog.pdf`         | PDF (if Pandoc is available)                     |
-
-> 💡 The HTML output ships both a dark (**Monokai**) and light (**Friendly**) Pygments style; the browser picks one based on the active theme.
-
----
-
-## 📂 Recommended Output Structure
-
-When generating documentation with DoxNet, your project structure might look like this:
-
-```
-docs/
-├── verilog-docs-config.json     ← Optional config file for input/output
-├── output/                      ← Output directory you define with --output
-│   ├── verilog.md               ← Generated Markdown file
-│   ├── verilog.html             ← Responsive HTML documentation
-│   └── verilog.pdf              ← PDF file (if Pandoc is installed)
-```
-
-You can name the output files however you want using the config file (`html_file`, `md_file`, `pdf_file`).
-
----
-
-## 🤖 CI/CD Example
-
-DoxNet fits nicely in automation and can gate merges on documentation coverage:
-
-```yaml
-- name: Set up Python
-  uses: actions/setup-python@v5
-  with:
-    python-version: "3.12"
-
-- name: Install DoxNet
-  run: pip install git+https://github.com/BTFLV/DoxNet.git
-
-- name: Generate & verify Verilog documentation
-  run: doxnet --output docs/html/verilog --config docs/config.json --min-coverage 90
-```
-
-You can deploy `docs/html/verilog` to GitHub Pages or any static host. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) in this repo for a working example that runs the test suite and a `--strict` documentation build.
-
----
-
-## Parser limitations
-
-DoxNet 2.0 uses source-oriented regular expressions rather than a full IEEE 1800 compiler frontend. Complex declarations, preprocessor conditionals and macro expansion may require additional parsing support. A future release should add an AST-backed backend and validate ports and parameters directly against the RTL interface. Documentation coverage currently measures documented design units, not per-port completeness.
-
-See [CHANGELOG.md](CHANGELOG.md) for maintenance changes.
-
-## 🧪 Development
+For development:
 
 ```bash
 pip install -e ".[test]"
-pytest
+pytest -q
+ruff check src tests
 ```
 
----
+PDF output optionally requires [Pandoc](https://pandoc.org/) plus a compatible PDF engine (usually LaTeX). Without Pandoc, HTML, Markdown and JSON still generate successfully unless `--pdf-required` is specified.
 
-## 📄 License
+## Quick start
 
-Released under the **MIT License**.
-See the [LICENSE](LICENSE) file for details.
+```bash
+doxnet --input examples/rtl --output docs/output --no-pdf
+
+# Or try the checked-in configuration, including coverage thresholds
+doxnet --config examples/doxnet.json --output docs/output --no-pdf
+```
+
+Expected outputs:
+
+| File | Purpose |
+|---|---|
+| `documentation.html` | Standalone searchable HTML with source code |
+| `documentation.md` | Markdown manual including interface tables |
+| `documentation.json` | Structured units, ports, parameters, diagnostics and coverage |
+| `documentation.pdf` | Optional Pandoc export |
+
+### Example source
+
+```systemverilog
+/**
+ * @brief Configurable counter
+ * @parameter WIDTH Width of the counter
+ * @input clk Clock input
+ * @input rst_n Active-low reset
+ * @output count Current count
+ */
+module counter #(parameter int WIDTH = 16) (
+    input  logic clk,
+    input  logic rst_n,
+    output logic [WIDTH-1:0] count
+);
+endmodule
+```
+
+The generated tables read `WIDTH = 16`, the `logic [WIDTH-1:0]` range and port directions from the declaration itself. The comment supplies only their descriptions. Prefer the neutral `@port <name> <description>` form for new projects; `@input`, `@output`, and `@inout` remain supported and additionally check the direction.
+
+### Documentation quality gates
+
+```bash
+# Fail if fewer than 90% of design units are documented
+doxnet -i rtl -o docs/output --no-pdf --min-coverage 90
+
+# Strict is backward-compatible: requires 100% design-unit coverage
+doxnet -i rtl -o docs/output --no-pdf --strict
+
+# Also validate the documented interface
+# These thresholds fail when a unit exposes undocumented ports/parameters.
+doxnet -i rtl -o docs/output --no-pdf \
+    --strict --min-port-coverage 100 --min-parameter-coverage 100 \
+    --fail-on-warnings
+```
+
+Coverage uses the number of documented entities divided by the number of discovered entities. **A zero denominator is `null`/N/A, never 100%.** An input with no design units is an error. A requested coverage threshold with zero ports/parameters fails because no meaningful coverage can be calculated.
+
+CLI exit codes: `0` success; `1` configuration/input error; `2` coverage failure; `3` output/required PDF failure or warnings when `--fail-on-warnings` is set.
+
+### Config file and explicit file order
+
+Example `doxnet.json` (file paths are relative to the config's directory):
+
+```json
+{
+  "title": "FPGA Project",
+  "language": "en",
+  "files": ["rtl/top.sv", "rtl/fifo.sv"],
+  "html_file": "index.html",
+  "json_file": "interfaces.json",
+  "min_coverage": 90,
+  "min_port_coverage": 80,
+  "exclude": ["**/generated/*.sv"]
+}
+```
+
+```bash
+doxnet --config doxnet.json --output docs/output --no-pdf
+```
+
+An immediately usable configuration is checked in at [examples/doxnet.json](examples/doxnet.json). The explicit order in `files` is respected. **Explicit CLI options override JSON values**, which override defaults. Alternatively use `--input rtl`, or `--filelist project.f` with one relative source path per line, `#` or `//` comments, and nested `-f other.f` entries. Options `+incdir`, `+define`, etc. are intentionally rejected rather than silently ignored; compilation/preprocessing options are not yet supported.
+
+Useful flags: `--exclude 'generated/*'` (repeatable), `--no-source`, `--source-url https://github.com/OWNER/REPO/blob/main`, `--no-pdf`, `--pdf-required`, `-v`/`-vv`, `-q`, and `--version`. Run `doxnet --help` for all flags.
+
+## JSON output
+
+`documentation.json` contains `schema_version: 1`, `title`, `files`, `units`, `diagnostics`, and `coverage`. Each design unit has `kind`, `name`, `file`, `line`, `end_line`, `brief`, `description`, `documented`, `ports`, `parameters`, and `localparams`. Coverage includes independent `units`, `ports`, and `parameters` counts and percentages. JSON is intended for CI reporting and other tooling.
+
+## CI/CD
+
+The repository workflow runs tests and Ruff checks on multiple Python versions/operating systems, generates documentation with strict coverage gates, builds a wheel and uploads the example documentation as a workflow artifact. Integrate into a project workflow with:
+
+```yaml
+- name: Install DoxNet
+  run: pip install git+https://github.com/BTFLV/DoxNet.git
+- name: Generate and validate HDL docs
+  run: doxnet -i rtl -o docs/output --no-pdf --strict --min-port-coverage 90
+```
+
+## Limitations
+
+The bundled parser is deliberately lightweight and does not implement full language semantics. Malformed headers or missing unit terminators are diagnosed as input errors; documentation comments with known tags that do not immediately precede a unit are reported as warnings. It supports common ANSI/non-ANSI module headers, interfaces, packages, parameter lists and localparam declarations. It **does not** expand includes/macros, resolve conditional compilation, evaluate expressions, elaborate parameters or instances, or guarantee correct extraction from every legal SystemVerilog construct. Both branches of a `` `ifdef `` may be counted without preprocessing; do not rely on unpreprocessed coverage for conditional RTL. A serious future milestone is a parser backend using [slang/pyslang](https://github.com/MikePopoloski/slang). Treat reported values as extracted source expressions, **not evaluated bit widths**.
+
+Do not use DoxNet coverage as a substitute for synthesizer/compiler diagnostics. If an extraction looks wrong, provide a minimal RTL reproducer in an issue.
+
+## Project
+
+- [Architecture and parser boundaries](docs/ARCHITECTURE.md)
+- [Contributing and running tests](CONTRIBUTING.md)
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
+- [MIT license](LICENSE)
