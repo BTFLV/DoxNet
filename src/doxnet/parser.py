@@ -103,6 +103,8 @@ def parse_verilog_file(file_path):
         raise
 
     code_lines = _strip_comments(lines)
+    # Strip string literals and single-line macro directives before searching keywords.
+    code_lines = [re.sub(r'\"(?:\\\\.|[^\"\\\\])*\"', '\"\"', line) if not line.lstrip().startswith('`') else '' for line in code_lines]
     i = 0
     while i < len(lines):
         if re.match(r'\s*/\*\*', lines[i]):
@@ -116,8 +118,9 @@ def parse_verilog_file(file_path):
             unit_kind, unit_name, unit_line = _find_unit_after(code_lines, i + 1)
             doc_info['module'] = unit_name if unit_name else 'Unknown'
             doc_info['unit_kind'] = unit_kind if unit_kind else 'module'
-            documentation.append(doc_info)
-            if unit_line is not None:
+            if unit_line is not None and not any(code_lines[k].strip() for k in range(i + 1, unit_line)):
+                documentation.append(doc_info)
+            if unit_line is not None and not any(code_lines[k].strip() for k in range(i + 1, unit_line)):
                 documented_lines.add(unit_line)
         elif re.match(r'\s*///', lines[i]):
             comment_lines = []

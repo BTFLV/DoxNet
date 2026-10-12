@@ -95,6 +95,8 @@ def load_config(args):
         logger.error("Error loading config file: %s", e)
         raise
 
+    if not isinstance(config, dict):
+        raise ValueError('Configuration must contain a JSON object')
     for key, attr in (
         ("title", "title"),
         ("language", "language"),
@@ -104,7 +106,15 @@ def load_config(args):
     ):
         if key in config:
             setattr(args, attr, config[key])
-    return config.get("files")
+    if args.language not in TRANSLATIONS:
+        raise ValueError('Unsupported language: %s' % args.language)
+    files = config.get('files')
+    if files is not None and (not isinstance(files, list) or not all(isinstance(f, str) for f in files)):
+        raise ValueError('files must be a list of paths')
+    if files is not None:
+        from pathlib import Path
+        files = [str(Path(args.config).resolve().parent / f) for f in files]
+    return files
 
 
 def collect_docs(args, file_list):
@@ -151,7 +161,7 @@ def collect_docs(args, file_list):
 def report_coverage(coverage_totals):
     total = coverage_totals["total"]
     documented = coverage_totals["documented"]
-    pct = 100.0 if total == 0 else (documented / total) * 100.0
+    pct = 0.0 if total == 0 else (documented / total) * 100.0
     logger.info("Documentation coverage: %d/%d units documented (%.1f%%)", documented, total, pct)
     for entry in coverage_totals["undocumented"]:
         logger.info("  undocumented: %s", entry)
@@ -160,10 +170,18 @@ def report_coverage(coverage_totals):
 
 def run(args):
     file_list = load_config(args)
+    if args.min_coverage is not None and not 0 <= args.min_coverage <= 100:
+        raise ValueError('--min-coverage must be between 0 and 100')
+    for name in (args.html_file, args.md_file, args.pdf_file):
+        if not isinstance(name, str) or not name or os.path.basename(name) != name or name in ('.', '..'):
+            raise ValueError('Output file names must be basenames')
     lang = TRANSLATIONS[args.language]
     os.makedirs(args.output, exist_ok=True)
 
     docs, base_path, coverage_totals, had_error = collect_docs(args, file_list)
+    if coverage_totals['total'] == 0:
+        logger.error('No HDL design units detected; cannot calculate coverage')
+        return EXIT_INPUT_ERROR
 
     toc_md, body_md = generate_markdown(docs, lang, args.title, base_path)
     md_text = toc_md + "\n\n" + body_md
@@ -206,7 +224,8 @@ def main(argv=None):
 
     try:
         return run(args)
-    except (FileNotFoundError, OSError, json.JSONDecodeError):
+    except (FileNotFoundError, OSError, json.JSONDecodeError, ValueError, KeyError) as exc:
+        logger.error('%s', exc)
         return EXIT_INPUT_ERROR
 
 

@@ -1,5 +1,6 @@
 """Rendering of parsed documentation into Markdown, HTML and PDF."""
 import logging
+from html import escape
 import os
 import shutil
 import subprocess
@@ -238,18 +239,19 @@ def convert_md_to_html(toc_md, content_md, title):
     });
     </script>
     """
+    safe_title = escape(title)
     html = f"""<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title}</title>
+<title>{safe_title}</title>
 {style}
 </head>
 <body>
 <div class="header">
     <span class="burger" onclick="toggleSidebar()">&#9776;</span>
-    <div class="title">{title}</div>
+    <div class="title">{safe_title}</div>
     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">&#9788;/&#9790;</button>
 </div>
 <div class="sidebar" id="sidebar">

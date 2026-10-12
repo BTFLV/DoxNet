@@ -1,6 +1,5 @@
 /docs/
 /rtl/
-*.json
 *.egg-info/
 .pytest_cache/
 

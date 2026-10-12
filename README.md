@@ -92,7 +92,7 @@ doxnet --input rtl --output docs --strict
 
 Other useful flags: `--no-pdf` (skip Pandoc even if installed), `-v`/`-vv` (more verbose logging), `-q` (warnings/errors only), `--version`.
 
-Exit codes: `0` success, `1` input/config error, `2` coverage gate failed.
+Exit codes: `0` success, `1` input/config error (including no design units), `2` coverage gate failed. Coverage gates apply only to detected design units; this lightweight parser does not yet perform full SystemVerilog preprocessing, AST analysis, or automatic port extraction.
 
 ---
 
@@ -183,6 +183,12 @@ DoxNet fits nicely in automation and can gate merges on documentation coverage:
 You can deploy `docs/html/verilog` to GitHub Pages or any static host. See [`.github/workflows/ci.yml`](.github/workflows/ci.yml) in this repo for a working example that runs the test suite and a `--strict` documentation build.
 
 ---
+
+## Parser limitations
+
+DoxNet 2.0 uses source-oriented regular expressions rather than a full IEEE 1800 compiler frontend. Complex declarations, preprocessor conditionals and macro expansion may require additional parsing support. A future release should add an AST-backed backend and validate ports and parameters directly against the RTL interface. Documentation coverage currently measures documented design units, not per-port completeness.
+
+See [CHANGELOG.md](CHANGELOG.md) for maintenance changes.
 
 ## 🧪 Development
 
