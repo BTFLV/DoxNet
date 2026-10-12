@@ -1,0 +1,9 @@
+{
+  "title": "DoxNet HDL Example",
+  "language": "en",
+  "files": ["rtl/example.sv", "rtl/interface.sv"],
+  "html_file": "index.html",
+  "min_coverage": 100,
+  "min_port_coverage": 100,
+  "min_parameter_coverage": 100
+}
