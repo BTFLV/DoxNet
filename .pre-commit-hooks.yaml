@@ -1,0 +1,7 @@
+- id: doxnet
+  name: doxnet
+  description: Check Verilog/SystemVerilog documentation without writing output.
+  entry: doxnet --check
+  language: python
+  pass_filenames: false
+  files: \.(v|sv|vh|svh)$

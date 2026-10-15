@@ -1,4 +1,4 @@
-/docs/
+/docs/output/
 /rtl/
 *.egg-info/
 .pytest_cache/

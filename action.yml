@@ -1,0 +1,31 @@
+name: DoxNet
+description: Generate Verilog/SystemVerilog documentation and enforce documentation coverage.
+branding:
+  icon: book-open
+  color: blue
+
+inputs:
+  args:
+    description: Arguments passed to doxnet, e.g. "--config doxnet.json --output docs/hdl".
+    required: true
+  python-version:
+    description: Python version used to run DoxNet.
+    default: '3.12'
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install DoxNet
+      shell: bash
+      run: python -m pip install --disable-pip-version-check "${{ github.action_path }}"
+    - name: Run DoxNet
+      shell: bash
+      env:
+        DOXNET_ARGS: ${{ inputs.args }}
+      run: |
+        # Word splitting of the argument string is intended.
+        # shellcheck disable=SC2086
+        doxnet --diagnostics-format github $DOXNET_ARGS

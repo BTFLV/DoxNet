@@ -13,13 +13,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest]
+        python: ['3.9', '3.10', '3.11', '3.12', '3.13']
         include:
-          - os: ubuntu-latest
-            python: '3.9'
-          - os: ubuntu-latest
-            python: '3.12'
-          - os: ubuntu-latest
-            python: '3.13'
           - os: windows-latest
             python: '3.12'
           - os: macos-latest
@@ -31,14 +27,14 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
           cache: pip
-      - name: Install DoxNet and test dependencies
+      - name: Install
         run: python -m pip install -e ".[test]"
       - name: Lint
         run: ruff check src tests
-      - name: Run tests
+      - name: Test
         run: python -m pytest -q
-      - name: CLI smoke test
-        run: doxnet --version
+      - name: Legacy entry point
+        run: python DoxNet.py --version
 
   example-docs:
     runs-on: ubuntu-latest
@@ -48,24 +44,35 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install .
-      - name: Generate example docs with interface coverage gates
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install build
+          python -m build
+      - name: Install the wheel into a clean environment
+        run: |
+          python -m venv /tmp/wheel-env
+          /tmp/wheel-env/bin/python -m pip install dist/doxnet-*.whl
+      - name: Generate example documentation with all gates enabled
         run: >-
-          doxnet --input examples/rtl --output dist/example-docs
-          --title 'DoxNet Example' --no-pdf --strict
-          --min-port-coverage 100 --min-parameter-coverage 100
+          /tmp/wheel-env/bin/doxnet --config examples/doxnet.json
+          --output dist/example-docs --no-pdf --diagnostics-format github
       - uses: actions/upload-artifact@v4
         with:
           name: example-docs
           path: dist/example-docs/
           if-no-files-found: error
-      - name: Build wheel
-        run: |
-          python -m pip install build
-          python -m build --wheel
-      - name: Install built wheel into a fresh environment
-        run: |
-          python -m venv wheel-smoke-env
-          wheel-smoke-env/bin/python -m pip install dist/doxnet-*.whl
-          wheel-smoke-env/bin/doxnet --version
-          wheel-smoke-env/bin/doxnet -i examples/rtl -o dist/wheel-example --no-pdf --strict
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist/*.whl
+            dist/*.tar.gz
+
+  action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the repository's own action
+        uses: ./
+        with:
+          args: --config examples/doxnet.json --check
