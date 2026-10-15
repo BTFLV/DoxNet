@@ -1,3 +1,3 @@
-"""DoxNet - HDL interface documentation and validation."""
+"""DoxNet: documentation and interface checks for Verilog/SystemVerilog."""
 
-__version__ = "2.1.0"
+__version__ = "3.0.0"

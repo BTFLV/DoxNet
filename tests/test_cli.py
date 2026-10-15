@@ -1,7 +1,10 @@
 import json
+from pathlib import Path
+import sys
+
+import pytest
 
 from doxnet.cli import main
-
 
 EXAMPLE = '''\
 /**
@@ -69,7 +72,7 @@ def test_filelist_nested(tmp_path):
 def test_unsupported_filelist_directive_is_error(tmp_path):
     _, dest = _project(tmp_path)
     filelist = tmp_path / "list.f"
-    filelist.write_text("+define+FEATURE\n")
+    filelist.write_text("-y lib\nrtl/device.sv\n")
     assert main(["-o", str(dest), "--filelist", str(filelist)]) == 1
 
 
@@ -164,7 +167,6 @@ def test_opt_out_of_source_embedding(tmp_path):
 
 
 def test_symlink_outside_input_is_not_read_implicitly(tmp_path):
-    import pytest
     rtl, dest = _project(tmp_path)
     secret = tmp_path / "secret.sv"
     secret.write_text("module secret; endmodule")
@@ -174,3 +176,90 @@ def test_symlink_outside_input_is_not_read_implicitly(tmp_path):
         pytest.skip("Symlinks unavailable on this platform")
     assert main(["-i", str(rtl), "-o", str(dest), "--no-pdf"]) == 1
     assert not dest.exists()
+
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def test_example_project_passes_all_gates(tmp_path):
+    dest = tmp_path / "out"
+    assert main(["-c", str(ROOT / "examples" / "doxnet.json"), "-o", str(dest), "--no-pdf"]) == 0
+    report = json.loads((dest / "documentation.json").read_text(encoding="utf-8"))
+    assert report["top"] == ["uart_top"]
+    jsonschema = pytest.importorskip("jsonschema")
+    schema = json.loads((ROOT / "docs" / "schema" / "doxnet.schema.json").read_text(encoding="utf-8"))
+    jsonschema.validate(report, schema)
+    html = (dest / "index.html").read_text(encoding="utf-8")
+    assert 'class="block-diagram"' in html
+    assert 'class="tree"' in html
+
+
+def test_defines_select_ifdef_branches(tmp_path):
+    rtl, dest = _project(tmp_path)
+    (rtl / "opt.sv").write_text("`ifdef WITH_OPT\n/** @brief opt */\nmodule opt; endmodule\n`endif\n")
+    assert main(["-i", str(rtl), "-o", str(dest), "--formats", "json"]) == 0
+    names = [u["name"] for u in json.loads((dest / "documentation.json").read_text())["units"]]
+    assert names == ["device"]
+    assert main(["-i", str(rtl), "-o", str(dest), "--formats", "json", "-D", "WITH_OPT"]) == 0
+    names = [u["name"] for u in json.loads((dest / "documentation.json").read_text())["units"]]
+    assert names == ["device", "opt"]
+    assert not (dest / "documentation.html").exists()
+
+
+def test_check_mode_writes_nothing(tmp_path):
+    rtl, dest = _project(tmp_path)
+    assert main(["-i", str(rtl), "--check", "--strict"]) == 0
+    assert main(["-i", str(rtl)]) == 1  # neither --output nor --check
+
+
+def test_github_annotations_and_disable(tmp_path, capsys, monkeypatch):
+    rtl, dest = _project(tmp_path)
+    (rtl / "orphan.sv").write_text("/** @brief orphan */\nint x;\nmodule m; endmodule\n")
+    monkeypatch.chdir(tmp_path)
+    assert main(["-i", str(rtl), "--check", "--diagnostics-format", "github"]) == 0
+    assert "::warning file=rtl/orphan.sv,line=1,title=DOC004::" in capsys.readouterr().out
+    assert main(["-i", str(rtl), "--check", "--fail-on-warnings", "--disable", "DOC004"]) == 0
+
+
+def test_toml_config_and_unknown_keys(tmp_path):
+    rtl, dest = _project(tmp_path)
+    if sys.version_info < (3, 11):
+        pytest.importorskip("tomli")
+    (tmp_path / "pyproject.toml").write_text(
+        '[tool.doxnet]\ntitle = "From TOML"\ninput = "rtl"\nformats = ["markdown"]\nstrict = true\n')
+    assert main(["-c", str(tmp_path / "pyproject.toml"), "-o", str(dest)]) == 0
+    assert "From TOML" in (dest / "documentation.md").read_text()
+    bad = tmp_path / "bad.json"
+    bad.write_text(json.dumps({"input": "rtl", "min_coverag": 50}))
+    assert main(["-c", str(bad), "-o", str(dest)]) == 1
+
+
+def test_filelist_defines_incdirs_and_env(tmp_path, monkeypatch):
+    rtl, dest = _project(tmp_path)
+    (tmp_path / "inc").mkdir()
+    (tmp_path / "inc" / "cfg.svh").write_text("`define FROM_HEADER\n")
+    (rtl / "extra.sv").write_text(
+        '`include "cfg.svh"\n`ifdef FROM_HEADER\n`ifdef FROM_LIST\nmodule extra; endmodule\n`endif\n`endif\n')
+    monkeypatch.setenv("RTL_ROOT", str(rtl))
+    filelist = tmp_path / "files.f"
+    filelist.write_text("+incdir+inc\n+define+FROM_LIST=1\n$RTL_ROOT/device.sv  // main\n${RTL_ROOT}/extra.sv\n")
+    assert main(["-f", str(filelist), "-o", str(dest), "--formats", "json"]) == 0
+    names = [u["name"] for u in json.loads((dest / "documentation.json").read_text())["units"]]
+    assert names == ["device", "extra"]
+    filelist.write_text("$UNSET_VARIABLE_FOR_TEST/device.sv\n")
+    assert main(["-f", str(filelist), "-o", str(dest)]) == 1
+
+
+def test_preprocessor_errors_stop_generation(tmp_path):
+    rtl, dest = _project(tmp_path)
+    (rtl / "broken.sv").write_text("`ifdef A\nmodule x; endmodule\n")
+    assert main(["-i", str(rtl), "-o", str(dest)]) == 1
+    assert not dest.exists()
+    assert main(["-i", str(rtl), "-o", str(dest), "--no-preprocess", "--formats", "json"]) == 0
+
+
+def test_python_dash_m_entry_point(tmp_path):
+    import subprocess
+    result = subprocess.run([sys.executable, "-m", "doxnet", "--version"], capture_output=True, text=True)
+    assert result.returncode == 0
+    assert result.stdout.startswith("doxnet ")

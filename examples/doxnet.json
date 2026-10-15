@@ -1,9 +1,18 @@
 {
-  "title": "DoxNet HDL Example",
+  "title": "UART example",
   "language": "en",
-  "files": ["rtl/example.sv", "rtl/interface.sv"],
+  "input": "rtl",
+  "include_dirs": ["rtl/include"],
+  "files": [
+    "rtl/stream_pkg.sv",
+    "rtl/stream_if.sv",
+    "rtl/sync_fifo.sv",
+    "rtl/uart_tx.sv",
+    "rtl/uart_top.sv"
+  ],
   "html_file": "index.html",
   "min_coverage": 100,
   "min_port_coverage": 100,
-  "min_parameter_coverage": 100
+  "min_parameter_coverage": 100,
+  "fail_on_warnings": true
 }

@@ -1,7 +1,13 @@
 """Parser regressions and public compatibility API tests."""
 import textwrap
 
-from doxnet.parser import find_all_units, parse_doxygen_comment, parse_source, parse_verilog_file, remove_doxnet_comments
+from doxnet.parser import (
+    find_all_units,
+    parse_doxygen_comment,
+    parse_source,
+    parse_verilog_file,
+    remove_doxnet_comments,
+)
 
 SAMPLE = textwrap.dedent('''\
 /**

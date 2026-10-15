@@ -34,13 +34,14 @@ def test_json_and_empty_coverage_metric():
     project = Project(title='Empty', files=['empty.sv'])
     parsed = json.loads(render_json(project))
     assert parsed['coverage']['units']['percent'] is None
-    assert parsed['schema_version'] == 1
+    assert parsed['schema_version'] == 2
+    assert parsed['generator']['name'] == 'doxnet'
 
 
 def test_search_handles_filename_and_escaped_values():
     project = _project()
     html = render_html(project, {'src/demo.sv': 'module demo;endmodule'})
-    assert 'data-search="module demo src/demo.sv"' in html
+    assert 'data-search="module demo src/demo.sv' in html
     assert '<img src=x onerror=alert(1)>' not in html
     assert 'id="unit-src-demo-sv-module-demo-2"' in html
 

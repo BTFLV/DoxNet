@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/BTFLV/DoxNet/blob/main/docs/schema/doxnet.schema.json",
+  "title": "DoxNet documentation report",
+  "description": "Format of documentation.json, schema_version 2.",
+  "type": "object",
+  "required": ["schema_version", "generator", "title", "files", "units", "diagnostics", "coverage", "top", "hierarchy", "file_docs"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"const": 2},
+    "generator": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {"name": {"const": "doxnet"}, "version": {"type": "string"}}
+    },
+    "title": {"type": "string"},
+    "files": {"type": "array", "items": {"type": "string"}, "description": "Input files in processing order, relative to the input root."},
+    "file_docs": {
+      "type": "object",
+      "description": "Comments marked with @file, keyed by file.",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["brief", "description", "metadata"],
+        "additionalProperties": false,
+        "properties": {
+          "brief": {"type": "string"},
+          "description": {"type": "string"},
+          "metadata": {"$ref": "#/$defs/metadata"}
+        }
+      }
+    },
+    "units": {"type": "array", "items": {"$ref": "#/$defs/unit"}},
+    "diagnostics": {"type": "array", "items": {"$ref": "#/$defs/diagnostic"}},
+    "top": {"type": "array", "items": {"type": "string"}, "description": "Names of the hierarchy roots."},
+    "hierarchy": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "coverage": {
+      "type": "object",
+      "required": ["units", "ports", "parameters"],
+      "additionalProperties": false,
+      "properties": {
+        "units": {"$ref": "#/$defs/metric"},
+        "ports": {"$ref": "#/$defs/metric"},
+        "parameters": {"$ref": "#/$defs/metric"}
+      }
+    }
+  },
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "description": "Values of @author, @version, @since, @date, @copyright and @license.",
+      "additionalProperties": {"type": "string"}
+    },
+    "metric": {
+      "type": "object",
+      "required": ["documented", "total", "percent"],
+      "additionalProperties": false,
+      "properties": {
+        "documented": {"type": "integer", "minimum": 0},
+        "total": {"type": "integer", "minimum": 0},
+        "percent": {"type": ["number", "null"], "description": "null when total is 0."}
+      }
+    },
+    "port": {
+      "type": "object",
+      "required": ["name", "direction", "type", "description", "line"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "direction": {"enum": ["", "input", "output", "inout", "ref", "interface", "import", "export", "clocking"]},
+        "type": {"type": "string", "description": "Declared type and packed range as written in the source."},
+        "description": {"type": "string"},
+        "line": {"type": "integer"}
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "required": ["name", "type", "default", "description", "line", "local"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "type": {"type": "string"},
+        "default": {"type": "string", "description": "Default expression as written, not evaluated."},
+        "description": {"type": "string"},
+        "line": {"type": "integer"},
+        "local": {"type": "boolean"}
+      }
+    },
+    "connection": {
+      "type": "object",
+      "required": ["formal", "actual"],
+      "additionalProperties": false,
+      "properties": {
+        "formal": {"type": "string", "description": "Empty for positional connections, * for .*"},
+        "actual": {"type": "string"}
+      }
+    },
+    "unit": {
+      "type": "object",
+      "required": ["kind", "name", "file", "line", "end_line", "brief", "description", "documented", "ports",
+                   "parameters", "localparams", "modports", "instances", "members", "metadata", "deprecated",
+                   "notes", "warnings", "todos", "see", "instantiated_by"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {"enum": ["module", "interface", "package", "program", "primitive"]},
+        "name": {"type": "string"},
+        "file": {"type": "string"},
+        "line": {"type": "integer"},
+        "end_line": {"type": "integer"},
+        "brief": {"type": "string"},
+        "description": {"type": "string"},
+        "documented": {"type": "boolean"},
+        "ports": {"type": "array", "items": {"$ref": "#/$defs/port"}},
+        "parameters": {"type": "array", "items": {"$ref": "#/$defs/parameter"}},
+        "localparams": {"type": "array", "items": {"$ref": "#/$defs/parameter"}},
+        "modports": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "ports", "description", "line"],
+            "additionalProperties": false,
+            "properties": {
+              "name": {"type": "string"},
+              "ports": {"type": "array", "items": {"$ref": "#/$defs/port"}},
+              "description": {"type": "string"},
+              "line": {"type": "integer"}
+            }
+          }
+        },
+        "instances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["module", "name", "line", "array", "parameters", "connections", "description", "resolved"],
+            "additionalProperties": false,
+            "properties": {
+              "module": {"type": "string"},
+              "name": {"type": "string"},
+              "line": {"type": "integer"},
+              "array": {"type": "string"},
+              "parameters": {"type": "array", "items": {"$ref": "#/$defs/connection"}},
+              "connections": {"type": "array", "items": {"$ref": "#/$defs/connection"}},
+              "description": {"type": "string"},
+              "resolved": {"type": "boolean", "description": "true if the module is defined in the inputs."}
+            }
+          }
+        },
+        "members": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "name", "signature", "description", "line"],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {"enum": ["typedef", "function", "task", "class"]},
+              "name": {"type": "string"},
+              "signature": {"type": "string"},
+              "description": {"type": "string"},
+              "line": {"type": "integer"}
+            }
+          }
+        },
+        "metadata": {"$ref": "#/$defs/metadata"},
+        "deprecated": {"type": ["string", "null"], "description": "null unless @deprecated is present."},
+        "notes": {"type": "array", "items": {"type": "string"}},
+        "warnings": {"type": "array", "items": {"type": "string"}},
+        "todos": {"type": "array", "items": {"type": "string"}},
+        "see": {"type": "array", "items": {"type": "string"}},
+        "instantiated_by": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "required": ["code", "message", "file", "line", "severity"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {"type": "string", "pattern": "^(HDL|DOC|PP)[0-9]{3}$"},
+        "message": {"type": "string"},
+        "file": {"type": "string"},
+        "line": {"type": "integer"},
+        "severity": {"enum": ["error", "warning"]}
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["module", "instance", "resolved", "recursive", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "module": {"type": "string"},
+        "instance": {"type": "string", "description": "Empty for a root."},
+        "resolved": {"type": "boolean"},
+        "recursive": {"type": "boolean"},
+        "children": {"type": "array", "items": {"$ref": "#/$defs/node"}}
+      }
+    }
+  }
+}

@@ -1,49 +1,73 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "doxnet"
-version = "2.1.0"
-description = "HDL-aware documentation and interface validation for Verilog/SystemVerilog."
+dynamic = ["version"]
+description = "Documentation generator and interface checker for Verilog/SystemVerilog."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Philip Mohr" }]
 requires-python = ">=3.9"
+keywords = ["verilog", "systemverilog", "hdl", "rtl", "fpga", "asic", "documentation", "doxygen"]
 dependencies = [
     "Markdown>=3.4",
     "Pygments>=2.14",
-    "bleach>=5.0",
+    "nh3>=0.2.14",
+    "tomli>=1.1; python_version < '3.11'",
 ]
 classifiers = [
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Documentation",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
     "Topic :: Software Development :: Documentation",
+    "Typing :: Typed",
 ]
 
 [project.urls]
 Homepage = "https://github.com/BTFLV/DoxNet"
+Documentation = "https://github.com/BTFLV/DoxNet/tree/main/docs"
 Issues = "https://github.com/BTFLV/DoxNet/issues"
+Changelog = "https://github.com/BTFLV/DoxNet/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-test = ["pytest>=7", "ruff>=0.8"]
+test = ["pytest>=7", "ruff>=0.8", "jsonschema>=4"]
 
 [project.scripts]
 doxnet = "doxnet.cli:main"
 
+[tool.setuptools.dynamic]
+version = { attr = "doxnet.__version__" }
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+doxnet = ["py.typed", "render/assets/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120
+target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E4", "E7", "E9", "F"]
+select = ["E4", "E7", "E9", "F", "W", "I", "B", "UP"]
+ignore = ["UP006", "UP007", "UP035", "UP045"]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
